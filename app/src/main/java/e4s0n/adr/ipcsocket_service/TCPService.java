@@ -11,6 +11,9 @@ import android.widget.Toast;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -33,11 +36,16 @@ public class TCPService extends Service {
     private MSGBinder msgBinder = new MSGBinder();
 
     class MSGBinder extends Binder{
-        void SendToClient(String msg)
+        void SendToClient(final String msg)
         {
             if (out != null)
             {
-                out.println(msg);
+               new Thread(){
+                   @Override
+                   public void run() {
+                       out.println(msg);
+                   }
+               }.start();
             }
             else
                 Log.e(TAG,"null out");
@@ -58,7 +66,8 @@ public class TCPService extends Service {
         public void run() {
             ServerSocket serverSocket = null;
             try{
-                serverSocket = new ServerSocket(8688);
+                String url[] =loadurl().split(":");
+                serverSocket = new ServerSocket(Integer.valueOf(url[1]));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -101,5 +110,38 @@ public class TCPService extends Service {
     public interface Callback {
         void onMesArrival(String data);
         void onClientConnected();
+    }
+
+    public String loadurl() {
+        String url = "localhost:8688";
+        File file = new File("sdcard/PQurl.txt");
+        if (!file.exists())
+        {
+            try {
+                file.createNewFile();
+                FileOutputStream outputStream = new FileOutputStream(file,true);
+                outputStream.write(url.getBytes());
+                outputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        else{
+            StringBuilder content = new StringBuilder();
+            try {
+                FileInputStream in = new FileInputStream(file);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                String line = "";
+                while ((line = reader.readLine()) != null) {
+                    content.append(line);
+                }
+                reader.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            url = content.toString();
+        }
+
+        return url;
     }
 }
